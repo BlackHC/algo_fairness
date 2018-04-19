@@ -1,176 +1,81 @@
-
-# coding: utf-8
-
-# In[4]:
-
-
-import blackhc.notebook
-
-
-# In[50]:
-
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
-
-# In[51]:
-
-
-get_ipython().magic('matplotlib inline')
-
-
-# In[7]:
-
-
-data = pd.read_csv('input/german_processed.csv')
-
-
-# In[99]:
-
-
-data = pd.read_csv('input/german_repaired.csv')
-
-
-# In[100]:
-
-
-data.describe()
-
-
-# In[101]:
-
-
-one_hot_data = pd.get_dummies(data)
-
-
-# In[102]:
-
-
-one_hot_data.dtypes
-
-
-# In[103]:
-
-
 from sklearn import linear_model
-
-
-# In[104]:
-
-
-logistic = linear_model.LogisticRegression()
-
-
-# In[105]:
-
-
-age_X = one_hot_data[one_hot_data.columns.difference(['credit', 'sex_male', 'sex_female'])]
-
-
-# In[106]:
-
-
-age_Y = one_hot_data['sex_male']
-
-
-# In[107]:
-
-
-logistic.fit(age_X, age_Y)
-
-
-# In[125]:
-
-
-logistic.predict(age_X)
-
-
-# In[120]:
-
-
-logistic.score(age_X, age_Y)
-
-
-# In[109]:
-
-
-p1 = np.matmul(age_X, logistic.coef_.T) - logistic.intercept_
-
-
-# In[119]:
-
-
-logistic.intercept_
-
-
-# In[110]:
-
-
-plt.plot(p1, np.zeros_like(p1), 'x')
-
-
-# In[111]:
-
-
-p_rest = age_X - logistic.coef_ * p1 / np.linalg.norm(logistic.coef_)**2
-
-
-# In[117]:
-
-
-np.matmul(p_rest, logistic.coef_.T) # Sanity check
-
-
-# In[113]:
-
-
 from sklearn import decomposition
+from sklearn.metrics import confusion_matrix
+
+def read_data(repaired=True):
+    if not repaired:
+        data = pd.read_csv('input/german_processed_age_cat.csv')
+    else:
+        data = pd.read_csv('input/german_repaired.csv')
+
+    one_hot_data = pd.get_dummies(data)
+    return one_hot_data
 
 
-# In[114]:
+def get_Xtarget(one_hot_data, category, ignored_features=[]):
+    X = one_hot_data[one_hot_data.columns.difference(ignored_features + [category])]
+    target = one_hot_data[category]
+    return X, target
 
 
-pca = decomposition.PCA(1)
+def project2d_classifier(X, target):
+    logistic = linear_model.LogisticRegression()
+    logistic.fit(X, target)
+
+    decision_coeff = np.matmul(X, logistic.coef_.T)
+
+    # plt.plot(p1, np.zeros_like(p1), 'x')
+
+    # Remove the part of the data that is important for the decision.
+    remainder_X = X - logistic.coef_ * decision_coeff / np.linalg.norm(logistic.coef_)**2
+
+    # Sanity check
+    assert (np.matmul(remainder_X, logistic.coef_.T) < 0.1).all()
+
+    # Now get the main principal component of the rest.
+    pca = decomposition.PCA(1)
+    remainder_main = pca.fit_transform(remainder_X)
+    return decision_coeff + logistic.intercept_, remainder_main
 
 
-# In[115]:
+def project2d_classifier_goal(X, target, target2):
+    logistic_1 = linear_model.LogisticRegression()
+    logistic_1.fit(X, target)
+    print(logistic_1.score(X, target))
+    print(confusion_matrix(target, logistic_1.predict(X)))
+
+    #print(logistic_1.intercept_)
+
+    logistic_2 = linear_model.LogisticRegression()
+    logistic_2.fit(X, target2)
+    print(logistic_2.score(X, target2))
+    #print(logistic_2.intercept_)
+
+    #q, r = np.linalg.qr(np.hstack([logistic_1.coef_.T, logistic_2.coef_.T]))
+    #projected = np.matmul(X, q)
+    projected = np.matmul(X, np.hstack([logistic_1.coef_.T, logistic_2.coef_.T]))
+    print(np.hstack([logistic_1.coef_.T, logistic_2.coef_.T]))
+    return projected[:, 0] + logistic_1.intercept_, projected[:, 1] + logistic_2.intercept_
 
 
-p2 = pca.fit_transform(p_rest) 
+def project2d(X):
+    pca = decomposition.PCA(2)
+    projected = pca.fit_transform(X)
+    return projected[:, 0], projected[:, 1]
 
 
-# In[116]:
+def plot(xy, target):
+    plt.figure()
+    for mask, color in zip([target == 0, target == 1], ['r', 'b']):
+        plt.scatter(xy[0][mask], xy[1][mask], c=color, alpha=0.5, marker='x')
 
 
-for mask, color in zip([age_Y==0, age_Y==1], ['r', 'b']):
-    plt.scatter(p1[mask], p2[mask], c=color, alpha=0.5, marker='x')
-plt.show()
-
-
-# In[121]:
-
-
-np.count_nonzero(age_Y==0)
-
-
-# In[122]:
-
-
-np.count_nonzero(age_Y==1)
-
-
-# In[126]:
-
-
-1-271/(271+729.0)
-
-
-# In[97]:
-
-
-for mask, color in zip([age_Y==0, age_Y==1], ['r', 'b']):
-    plt.scatter(p1[mask], p2[mask], c=color, alpha=0.5, marker='x')
-plt.show()
+def plot2(xy, target, target2):
+    plt.figure()
+    for mask, color in zip([target == 0, target == 1], ['r', 'b']):
+        for mask2, marker in zip([target2 != 1, target2 == 1], ['v', '^']):
+            plt.scatter(xy[0][mask & mask2], xy[1][mask & mask2], c=color, alpha=0.5, marker=marker)
 
