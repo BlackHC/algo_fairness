@@ -44,20 +44,20 @@ def project2d_classifier(X, target):
 def project2d_classifier_goal(X, target, target2):
     logistic_1 = linear_model.LogisticRegression()
     logistic_1.fit(X, target)
-    print(logistic_1.score(X, target))
-    print(confusion_matrix(target, logistic_1.predict(X)))
+    #print(logistic_1.score(X, target))
+    #print(confusion_matrix(target, logistic_1.predict(X)))
 
     #print(logistic_1.intercept_)
 
     logistic_2 = linear_model.LogisticRegression()
     logistic_2.fit(X, target2)
-    print(logistic_2.score(X, target2))
+    #print(logistic_2.score(X, target2))
     #print(logistic_2.intercept_)
 
     #q, r = np.linalg.qr(np.hstack([logistic_1.coef_.T, logistic_2.coef_.T]))
     #projected = np.matmul(X, q)
     projected = np.matmul(X, np.hstack([logistic_1.coef_.T, logistic_2.coef_.T]))
-    print(np.hstack([logistic_1.coef_.T, logistic_2.coef_.T]))
+    #print(np.hstack([logistic_1.coef_.T, logistic_2.coef_.T]))
     return projected[:, 0] + logistic_1.intercept_, projected[:, 1] + logistic_2.intercept_
 
 
@@ -74,7 +74,6 @@ def plot(xy, target):
 
 
 def plot2(xy, target, target2):
-    plt.figure()
     for mask, color in zip([target == 0, target == 1], ['r', 'b']):
         for mask2, marker in zip([target2 != 1, target2 == 1], ['v', '^']):
             plt.scatter(xy[0][mask & mask2], xy[1][mask & mask2], c=color, alpha=0.5, marker=marker)

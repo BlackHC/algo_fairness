@@ -1,0 +1,2 @@
+cd input
+BlackBoxAuditing-repair german_processed_age_cat.csv german_repaired.csv 1 True -p "age_cat" "sex" -i "age"
